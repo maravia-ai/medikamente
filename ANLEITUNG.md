@@ -67,6 +67,9 @@ Damit sie auf dem iPhone erscheinen, muss der Microsoft-365-Kalender dort synchr
 - **Antippen → Eingelagert:** Anzahl neu hinzugekommener Tabletten eingeben. Die App schreibt in Excel
   `Menge = heutiger Rest + Zugang` und `gezählt am = heute`. Deine Formeln (reicht bis, Anzahl noch übrig, Wert)
   rechnen unverändert weiter.
+  Optional **Packungspreis** und **Stück pro Packung** eingeben: Die App berechnet den Preis pro Stück
+  (Packungspreis / Stück) und schreibt ihn in Spalte I „Preis/Stck“. „Stück pro Packung“ wird pro Medikament
+  auf dem Gerät gemerkt.
 - **Antippen → Gezählt:** tatsächlich gezählten Bestand eintragen (Korrektur).
 - **Ausblenden:** für Medikamente, die du nicht mehr nimmst (z. B. Prasugrel). Gilt nur für dieses Gerät;
   die Erinnerung wird dabei entfernt.

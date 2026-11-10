@@ -15,6 +15,8 @@ const EXT_PROP = "String {6f2c1b3e-8d4a-4c7e-9a51-2b7d3e9f0a14} Name MedInventur
 const DEMO = new URLSearchParams(location.search).has("demo");
 const LS_HIDDEN = "medapp.hidden";
 const LS_ITEM = "medapp.itemId";
+const LS_PACK = "medapp.packungsgroesse";
+let priceColumnOk = false;
 
 // Spalten im Blatt "Inventur" (0-basiert): A..K
 const COL = { name: 0, dosis: 1, morgens: 2, abends: 3, menge: 4, gezaehlt: 5, preis: 8, notiz: 10 };
@@ -45,7 +47,7 @@ function fmtDateLong(s) {
   return serialToUTCDate(s).toLocaleDateString("de-DE", { timeZone: "UTC", weekday: "short", day: "numeric", month: "long", year: "numeric" });
 }
 function isoDate(s) { return serialToUTCDate(s).toISOString().slice(0, 10); }
-function fmtEuro(v) { return v.toLocaleString("de-DE", { style: "currency", currency: "EUR" }); }
+function fmtEuro(v) { return v.toLocaleString("de-DE", { style: "currency", currency: "EUR", minimumFractionDigits: 2, maximumFractionDigits: 4 }); }
 function esc(s) {
   return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
@@ -116,6 +118,7 @@ function parseSheet(values, startRow) {
       sections.push(current);
     }
   }
+  priceColumnOk = String(h[COL.preis] ?? "").startsWith("preis");
   return sections.filter(s => s.meds.length);
 }
 
@@ -186,6 +189,28 @@ async function readUsedRange() {
 async function readRow(id, row) {
   const data = await graph("GET", `${sheetPath(id)}/range(address='A${row}:F${row}')?$select=values`);
   return data.values[0];
+}
+
+async function writePrice(id, row, preis) {
+  const col = String.fromCharCode(65 + COL.preis);
+  await graph("PATCH", `${sheetPath(id)}/range(address='${col}${row}')`, { values: [[preis]] });
+}
+
+function getPackSize(name) {
+  try { return JSON.parse(localStorage.getItem(LS_PACK) || "{}")[name] || null; } catch { return null; }
+}
+function setPackSize(name, n) {
+  try {
+    const all = JSON.parse(localStorage.getItem(LS_PACK) || "{}");
+    all[name] = n;
+    localStorage.setItem(LS_PACK, JSON.stringify(all));
+  } catch { /* ignorieren */ }
+}
+function parseDecimal(s) {
+  const t = String(s).trim().replace(/\s|€/g, "").replace(",", ".");
+  if (t === "") return null;
+  const v = Number(t);
+  return Number.isFinite(v) && v >= 0 ? v : NaN;
 }
 
 async function writeStock(id, row, menge, serial) {
@@ -397,6 +422,16 @@ function openDetail(name) {
     <label class="field" id="lbl" for="qty">Neu hinzugekommene Tabletten</label>
     <input type="number" id="qty" inputmode="numeric" min="0" step="1" placeholder="z. B. 100">
     <div class="preview" id="pv"></div>
+    <div id="pricebox"${priceColumnOk ? "" : ' style="display:none"'}>
+      <label class="field">Preis aktualisieren (optional)</label>
+      <div class="pricegrid">
+        <div><label class="field" for="ppack">Packungspreis €</label>
+          <input type="text" id="ppack" inputmode="decimal" autocomplete="off" placeholder="z. B. 14,30"></div>
+        <div><label class="field" for="psize">Stück pro Packung</label>
+          <input type="number" id="psize" inputmode="numeric" min="1" step="1" placeholder="z. B. 100"></div>
+      </div>
+      <div class="preview" id="ppv"></div>
+    </div>
     <div class="actions" style="margin-top:0">
       <button class="btn primary" id="save" disabled>Speichern</button>
       <button class="btn" id="hide">${hidden.has(m.name) ? "Wieder einblenden" : "Ausblenden (nicht mehr eingenommen)"}</button>
@@ -404,15 +439,37 @@ function openDetail(name) {
     </div>`;
 
   const $qty = $sheet.querySelector("#qty"), $pv = $sheet.querySelector("#pv"), $save = $sheet.querySelector("#save");
+  const $pbox = $sheet.querySelector("#pricebox"), $ppack = $sheet.querySelector("#ppack");
+  const $psize = $sheet.querySelector("#psize"), $ppv = $sheet.querySelector("#ppv");
+  const savedPack = getPackSize(m.name);
+  let psizeTouched = false;
+  if (savedPack) { $psize.value = savedPack; psizeTouched = true; }
 
   function newMenge() {
     const v = Number($qty.value);
     if ($qty.value === "" || !Number.isFinite(v) || v < 0) return null;
     return mode === "add" ? m.rest + Math.round(v) : Math.round(v);
   }
+  // Ergebnis: null = kein Preis eingegeben, NaN = ungültig, sonst Preis pro Stück
+  function newPrice() {
+    if (mode !== "add" || !priceColumnOk) return null;
+    const p = parseDecimal($ppack.value);
+    if (p === null) return null;
+    const s = Number($psize.value);
+    if (Number.isNaN(p) || !Number.isInteger(s) || s < 1) return NaN;
+    return Math.round((p / s) * 10000) / 10000;
+  }
   function update() {
+    if (mode === "add" && !psizeTouched && $qty.value !== "") $psize.value = Math.round(Number($qty.value)) || "";
+    const price = newPrice();
+    if (price === null) $ppv.textContent = m.preis != null ? `Bisher: ${fmtEuro(m.preis)} pro Stück` : "";
+    else if (Number.isNaN(price)) $ppv.textContent = "Bitte gültigen Packungspreis und Stückzahl eingeben.";
+    else {
+      const diff = m.preis != null ? ` (bisher ${fmtEuro(m.preis)})` : "";
+      $ppv.textContent = `Neuer Preis: ${price.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 4 })} € pro Stück${diff}`;
+    }
     const n = newMenge();
-    $save.disabled = n === null || (mode === "add" && Number($qty.value) === 0);
+    $save.disabled = n === null || (mode === "add" && Number($qty.value) === 0) || Number.isNaN(price);
     if (n === null) { $pv.textContent = ""; return; }
     if (m.daily > 0) {
       const bis = todaySerial() + Math.floor(n / m.daily);
@@ -423,9 +480,13 @@ function openDetail(name) {
     mode = b.dataset.mode;
     $sheet.querySelectorAll(".seg button").forEach(x => x.classList.toggle("on", x === b));
     $sheet.querySelector("#lbl").textContent = mode === "add" ? "Neu hinzugekommene Tabletten" : "Tatsächlich gezählter Bestand";
+    $pbox.style.display = mode === "add" && priceColumnOk ? "" : "none";
     update();
   });
   $qty.oninput = update;
+  $ppack.oninput = update;
+  $psize.oninput = () => { psizeTouched = $psize.value !== ""; update(); };
+  update();
   $sheet.querySelector("#close").onclick = closeDetail;
 
   $sheet.querySelector("#hide").onclick = async () => {
@@ -444,9 +505,11 @@ function openDetail(name) {
     try {
       const T = todaySerial();
       let menge = newMenge();
+      const price = newPrice();
       if (DEMO) {
         const r = demo.values[m.row - demo.startRow];
         r[COL.menge] = menge; r[COL.gezaehlt] = T;
+        if (price !== null) r[COL.preis] = price;
       } else {
         // Zeile vor dem Schreiben frisch lesen und prüfen, ob es noch dasselbe Medikament ist
         const cur = await readRow(state.itemId, m.row);
@@ -458,10 +521,12 @@ function openDetail(name) {
           menge = fresh.rest + Math.round(Number($qty.value));
         }
         await writeStock(state.itemId, m.row, menge, T);
+        if (price !== null) await writePrice(state.itemId, m.row, price);
       }
+      if (price !== null) setPackSize(m.name, Number($psize.value));
       closeDetail();
       await load();
-      toast(`${m.name}: Bestand ${menge} Stück gespeichert.`);
+      toast(`${m.name}: Bestand ${menge} Stück${price !== null ? " und Preis" : ""} gespeichert.`);
       if (!DEMO) {
         const updated = state.meds.find(x => x.name === m.name);
         if (updated) {
