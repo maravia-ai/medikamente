@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Medikamente">
+<meta name="theme-color" content="#f2f2f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" href="icon-180.png">
+<title>Medikamente</title>
+<style>
+  :root {
+    --bg: #f2f2f7; --card: #ffffff; --text: #1c1c1e; --muted: #6e6e73; --line: #e5e5ea;
+    --accent: #0a66c2; --ok: #1f8a4c; --warn: #c25e00; --bad: #c62828;
+    --ok-bg: #e6f4ea; --warn-bg: #fff1e0; --bad-bg: #fde8e8;
+    --shadow: 0 1px 2px rgba(0,0,0,.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #000000; --card: #1c1c1e; --text: #f2f2f7; --muted: #98989f; --line: #2c2c2e;
+      --accent: #4c9fff; --ok: #4cc27a; --warn: #ff9f40; --bad: #ff6b6b;
+      --ok-bg: #12301f; --warn-bg: #3a2610; --bad-bg: #3d1515;
+      --shadow: none;
+    }
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.4 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif; }
+  body { padding: env(safe-area-inset-top) 0 calc(env(safe-area-inset-bottom) + 24px); }
+  main { max-width: 640px; margin: 0 auto; padding: 0 16px; }
+  header { padding: 20px 0 8px; display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
+  h1 { font-size: 32px; line-height: 1.1; margin: 0; letter-spacing: -.02em; }
+  .sub { color: var(--muted); font-size: 13px; margin-top: 4px; }
+  .iconbtn { background: none; border: 0; color: var(--accent); font-size: 15px; padding: 8px 0; cursor: pointer; }
+  .summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 12px 0 4px; }
+  .tile { background: var(--card); border-radius: 12px; padding: 10px 12px; box-shadow: var(--shadow); }
+  .tile b { display: block; font-size: 24px; font-variant-numeric: tabular-nums; }
+  .tile span { font-size: 12px; color: var(--muted); }
+  .tile.warn b { color: var(--warn); } .tile.bad b { color: var(--bad); } .tile.ok b { color: var(--ok); }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); font-weight: 600; margin: 22px 4px 6px; }
+  .list { background: var(--card); border-radius: 12px; overflow: hidden; box-shadow: var(--shadow); }
+  .row { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; padding: 12px 14px; border-top: 1px solid var(--line); cursor: pointer; width: 100%; text-align: left; background: none; border-left: 0; border-right: 0; border-bottom: 0; color: inherit; font: inherit; }
+  .row:first-child { border-top: 0; }
+  .row:active { background: var(--line); }
+  .name { font-weight: 600; }
+  .meta { color: var(--muted); font-size: 13px; }
+  .right { text-align: right; }
+  .days { font-weight: 600; font-variant-numeric: tabular-nums; }
+  .bar { grid-column: 1 / -1; height: 4px; border-radius: 2px; background: var(--line); overflow: hidden; margin-top: 4px; }
+  .bar i { display: block; height: 100%; border-radius: 2px; }
+  .s-ok .days { color: var(--ok); } .s-ok .bar i { background: var(--ok); }
+  .s-warn .days { color: var(--warn); } .s-warn .bar i { background: var(--warn); }
+  .s-bad .days { color: var(--bad); } .s-bad .bar i { background: var(--bad); }
+  .s-off .days { color: var(--muted); }
+  .badge { display: inline-block; font-size: 11px; font-weight: 600; padding: 1px 6px; border-radius: 6px; margin-left: 6px; vertical-align: 2px; }
+  .s-warn .badge { background: var(--warn-bg); color: var(--warn); }
+  .s-bad .badge { background: var(--bad-bg); color: var(--bad); }
+  .actions { display: grid; gap: 8px; margin-top: 24px; }
+  .btn { appearance: none; border: 0; border-radius: 12px; padding: 14px; font: inherit; font-weight: 600; cursor: pointer; background: var(--card); color: var(--accent); box-shadow: var(--shadow); }
+  .btn.primary { background: var(--accent); color: #fff; }
+  .btn:disabled { opacity: .5; }
+  .btn.danger { color: var(--bad); }
+  .center { text-align: center; padding: 48px 8px; color: var(--muted); }
+  .center h1 { color: var(--text); margin-bottom: 8px; }
+  .error { background: var(--bad-bg); color: var(--bad); border-radius: 12px; padding: 12px 14px; margin: 12px 0; font-size: 14px; white-space: pre-wrap; }
+  details summary { cursor: pointer; color: var(--muted); font-size: 13px; text-transform: uppercase; letter-spacing: .04em; font-weight: 600; margin: 22px 4px 6px; }
+  /* Detail-Sheet */
+  .backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.4); display: none; align-items: flex-end; justify-content: center; z-index: 10; }
+  .backdrop.open { display: flex; }
+  .sheet { background: var(--bg); width: 100%; max-width: 640px; border-radius: 16px 16px 0 0; padding: 8px 16px calc(env(safe-area-inset-bottom) + 16px); max-height: 92vh; overflow-y: auto; }
+  .grab { width: 36px; height: 5px; border-radius: 3px; background: var(--line); margin: 4px auto 12px; }
+  .sheet h3 { font-size: 22px; margin: 0 0 2px; }
+  .kv { background: var(--card); border-radius: 12px; margin: 12px 0; box-shadow: var(--shadow); }
+  .kv div { display: flex; justify-content: space-between; gap: 12px; padding: 10px 14px; border-top: 1px solid var(--line); font-size: 15px; }
+  .kv div:first-child { border-top: 0; }
+  .kv span:first-child { color: var(--muted); }
+  .seg { display: grid; grid-template-columns: 1fr 1fr; background: var(--line); border-radius: 10px; padding: 2px; margin: 16px 0 10px; }
+  .seg button { border: 0; background: none; padding: 8px; border-radius: 8px; font: inherit; font-size: 14px; font-weight: 600; color: var(--text); cursor: pointer; }
+  .seg button.on { background: var(--card); box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+  label.field { display: block; font-size: 13px; color: var(--muted); margin: 0 4px 6px; }
+  input[type=number] { width: 100%; font: inherit; font-size: 22px; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--card); color: var(--text); }
+  .preview { font-size: 14px; color: var(--muted); margin: 8px 4px 14px; min-height: 20px; }
+  .toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 20px); transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 10px 16px; border-radius: 20px; font-size: 14px; z-index: 20; opacity: 0; transition: opacity .2s; pointer-events: none; max-width: calc(100% - 32px); }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<main id="app"><div class="center">Lade ...</div></main>
+
+<div class="backdrop" id="backdrop">
+  <div class="sheet" id="sheet" role="dialog" aria-modal="true"></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script src="config.js"></script>
+<script src="msal-browser.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
